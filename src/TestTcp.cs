@@ -21,7 +21,7 @@ public class TestTcp
 
     private readonly List<TestSocket> _testSockets;
     
-    public TestTcp(string host, int port, string inputFormat = ">i32s4s", string outputFormat = ">ii32s16s", string input = "0,helloworld,name", int timeout = 2000, int maxConnections = 200, int duration = 10000)
+    public TestTcp(string host, int port, string inputFormat = ">ni32s4s", string outputFormat = ">ii32s16s", string input = "0,helloworld,name", int timeout = 2000, int maxConnections = 200, int duration = 10000)
     {
         Host = host;
         Port = port;
@@ -31,6 +31,7 @@ public class TestTcp
         Timeout = timeout;
         MaxConnections = maxConnections;
         Duration = TimeSpan.FromMilliseconds(duration);
+        
         _token = new CancellationTokenSource(Duration).Token;
         _inputFormatter = new PackFormatter(inputFormat);
         _outputFormatter = new PackFormatter(outputFormat);
@@ -249,7 +250,7 @@ public class TestSocket : MessageDecoder
         }
     }
     
-    public void OnEvent(SocketChannel channel, SocketEventCode eventCode, string content = "")
+    public new void OnEvent(SocketChannel channel, SocketEventCode eventCode, string content = "")
     {
     }
 
