@@ -1,0 +1,10 @@
+# common
+.vscode
+.vs
+.DS_Store
+.idea
+.chat
+
+# c#
+bin/
+obj/
