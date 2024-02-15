@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Threading;
-
-namespace EasyTestSocket.Buf;
+﻿namespace EasyTestSocket.Buf;
 
 public class ByteBuf : IDisposable
 {
@@ -30,6 +26,11 @@ public class ByteBuf : IDisposable
     /// 最大容量
     /// </summary>
     public int MaxCapacity { get; }
+
+    /// <summary>
+    /// 是否是大端模式
+    /// </summary>
+    public bool IsBigEndian { get; set; } = true;
 
     /// <summary>
     /// 引用次数计数器
@@ -135,7 +136,14 @@ public class ByteBuf : IDisposable
     {
         EnsureAccessible();
         EnsureWritable(2);
-        ByteUtil.SetShort(Data, WriterIndex, value);
+        if (IsBigEndian)
+        {
+            ByteUtil.SetShort(Data, WriterIndex, value);
+        }
+        else
+        {
+            ByteUtil.SetShortLE(Data, WriterIndex, value);
+        }
         WriterIndex += 2;
     }
 
@@ -147,7 +155,14 @@ public class ByteBuf : IDisposable
     {
         EnsureAccessible();
         EnsureWritable(4);
-        ByteUtil.SetInt(Data, WriterIndex, value);
+        if (IsBigEndian)
+        {
+            ByteUtil.SetInt(Data, WriterIndex, value);
+        }
+        else
+        {
+            ByteUtil.SetIntLE(Data, WriterIndex, value);
+        }
         WriterIndex += 4;
     }
 
@@ -159,7 +174,14 @@ public class ByteBuf : IDisposable
     {
         EnsureAccessible();
         EnsureWritable(8);
-        ByteUtil.SetLong(Data, WriterIndex, value);
+        if (IsBigEndian)
+        {
+            ByteUtil.SetLong(Data, WriterIndex, value);
+        }
+        else
+        {
+            ByteUtil.SetLongLE(Data, WriterIndex, value);
+        }
         WriterIndex += 8;
     }
 
@@ -266,7 +288,14 @@ public class ByteBuf : IDisposable
     {
         EnsureAccessible();
         CheckIndex(startIndex, 2);
-        ByteUtil.SetShort(Data, startIndex, value);
+        if (IsBigEndian)
+        {
+            ByteUtil.SetShort(Data, startIndex, value);
+        }
+        else
+        {
+            ByteUtil.SetShortLE(Data, startIndex, value);
+        }
     }
 
     /// <summary>
@@ -277,7 +306,14 @@ public class ByteBuf : IDisposable
     {
         EnsureAccessible();
         CheckIndex(startIndex, 4);
-        ByteUtil.SetInt(Data, startIndex, value);
+        if (IsBigEndian)
+        {
+            ByteUtil.SetInt(Data, startIndex, value);
+        }
+        else
+        {
+            ByteUtil.SetIntLE(Data, startIndex, value);
+        }
     }
 
     /// <summary>
@@ -288,7 +324,14 @@ public class ByteBuf : IDisposable
     {
         EnsureAccessible();
         CheckIndex(startIndex, 8);
-        ByteUtil.SetLong(Data, startIndex, value);
+        if (IsBigEndian)
+        {
+            ByteUtil.SetLong(Data, startIndex, value);
+        }
+        else
+        {
+            ByteUtil.SetLongLE(Data, startIndex, value);
+        }
     }
 
     /// <summary>

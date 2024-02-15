@@ -151,7 +151,7 @@ public class PackFormatter
     public ByteBuf Format(string input)
     {
         var array = input.Split(",");
-        var buf = new ByteBuf();
+        var buf = new ByteBuf { IsBigEndian = _isBigEndian };
 
         foreach (var pattern in _patterns)
         {
