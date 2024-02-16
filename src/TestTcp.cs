@@ -20,6 +20,7 @@ public class TestTcp
     private readonly CancellationToken _token;
 
     private readonly List<TestSocket> _testSockets;
+    private Exception? _error;
     
     public TestTcp(string host, int port, string inputFormat = ">ni32s4s", string outputFormat = ">ii32s16s", string input = "0,helloworld,name", int timeout = 2000, int maxConnections = 200, int duration = 10000)
     {
@@ -49,8 +50,15 @@ public class TestTcp
     {
         for (var i = 0; i < MaxConnections; i++)
         {
-            var socket = new TestSocket(Host, Port, _socketFactory, _token, _inputFormatter.Format(Input), Timeout, _outputFormatter.Length);
-            _testSockets.Add(socket);
+            try
+            {
+                var socket = new TestSocket(Host, Port, _socketFactory, _token, _inputFormatter.Format(Input), Timeout, _outputFormatter.Length);
+                _testSockets.Add(socket);
+            }
+            catch (Exception e)
+            {
+                _error = e;
+            }
         }
 
         var testTasks = new List<Task>();
@@ -125,12 +133,20 @@ public class TestTcp
         Console.WriteLine();
         Console.WriteLine($"Total: {total}, Success: {success}, Failed: {failed}, Timeout: {timeout}, Error: {error}");
         Console.WriteLine($"Throughput: {FormatSize(throughput)}/s");
-        
-        var ex = _testSockets.FirstOrDefault(s => s.Error != null)?.Error;
-        if (ex != null)
+
+        if (_error != null)
         {
-            Console.WriteLine($"Exception: {ex.Message}");
-            Console.WriteLine(ex);
+            Console.WriteLine($"Exception: {_error.Message}");
+            Console.WriteLine(_error);
+        }
+        else
+        {
+            var ex = _testSockets.FirstOrDefault(s => s.Error != null)?.Error;
+            if (ex != null)
+            {
+                Console.WriteLine($"Exception: {ex.Message}");
+                Console.WriteLine(ex);
+            }
         }
     }
     

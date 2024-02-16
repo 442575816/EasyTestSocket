@@ -178,6 +178,10 @@ public class PackFormatter
 
         foreach (var pattern in _patterns)
         {
+            if (pattern.Index >= array.Length)
+            {
+                throw new ArgumentException("Invalid index");
+            }
             pattern.Pack(this, buf, pattern.Index == -1 ? "" : array[pattern.Index]);
         }
 
