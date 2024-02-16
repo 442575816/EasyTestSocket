@@ -125,6 +125,13 @@ public class TestTcp
         Console.WriteLine();
         Console.WriteLine($"Total: {total}, Success: {success}, Failed: {failed}, Timeout: {timeout}, Error: {error}");
         Console.WriteLine($"Throughput: {FormatSize(throughput)}/s");
+        
+        var ex = _testSockets.FirstOrDefault(s => s.Error != null)?.Error;
+        if (ex != null)
+        {
+            Console.WriteLine($"Exception: {ex.Message}");
+            Console.WriteLine(ex);
+        }
     }
     
     public string FormatElapsedTime(long elapsed)
@@ -210,13 +217,22 @@ public class TestSocket : MessageDecoder
     private readonly int _outputLength;
     private TaskCompletionSource? _tcs;
     private readonly TimeSpan _timeout;
+    private readonly SocketEventCode _connEventCode;
+    public Exception? Error { get; set; }
     
     public TestSocket(string host, int port, SocketFactory factory, CancellationToken token, ByteBuf buf, int timeout, int size)
     {
         Result = new BenchmarkResult();
-        
         _channel = factory.Create(host, port, this);
-        _channel.ConnectSync();
+        try
+        {
+            _connEventCode = _channel.ConnectSync();
+        }
+        catch (Exception e)
+        {
+            Error = e;
+        }
+        
         _token = token;
         _outputLength = size;
         _buf = buf;
@@ -226,13 +242,27 @@ public class TestSocket : MessageDecoder
     
     public async Task StartBenchmark()
     {
-        while (!_token.IsCancellationRequested)
+        if (_connEventCode != SocketEventCode.ConnectSucc)
+        {
+            return;
+        }
+        
+        while (!_token.IsCancellationRequested && Error == null)
         {
             _tcs = new TaskCompletionSource();
             _buf.Retain();
-            var result = await _channel.SendAsync(_buf);
-            if (!result)
+            try
             {
+                var result = await _channel.SendAsync(_buf);
+                if (!result)
+                {
+                    Result.Error++;
+                    continue;
+                }
+            }
+            catch (Exception e)
+            {
+                Error = e;
                 Result.Error++;
                 continue;
             }

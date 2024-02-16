@@ -3,10 +3,6 @@
 using System.Diagnostics.CodeAnalysis;
 using CommandLine;
 using EasyTestSocket;
-using EasyTestSocket.Log;
-
-LogFactory.Provitor = LogProvider.Serilog;
-LogFactory.Setup();
 
 var result = Parser.Default.ParseArguments<Options>(args);
 

@@ -87,6 +87,28 @@ internal sealed class StringPattern : PackPattern
     }
 }
 
+internal sealed class RawBytePattern : PackPattern
+{
+    public int Length { get; internal set; }
+
+    public int Index { get; set; }
+    
+    public void Pack(PackFormatter formatter, ByteBuf buf, string value)
+    {
+        var chars = value.ToCharArray();
+        if (chars.Length != Length)
+        {
+            throw new ArgumentException("Invalid length");
+        }
+        var bytes = new byte[chars.Length];
+        for (var i = 0; i < chars.Length; i++)
+        {
+            bytes[i] = byte.Parse(chars[i].ToString());
+        }
+        buf.WriteBytes(bytes);
+    }
+}
+
 internal sealed class BytePattern : PackPattern
 {
     public int Length => 1;
@@ -138,6 +160,7 @@ public class PackFormatter
     public const char Short = 'h';
     public const char String = 's';
     public const char Byte = 'b';
+    public const char RawByte = 'B';
     
     private bool _isBigEndian;
     private readonly List<PackPattern> _patterns = new();
@@ -171,7 +194,7 @@ public class PackFormatter
         {
             BigEndian => true,
             LittleEndian => false,
-            _ => throw new ArgumentException("Invalid format")
+            _ => true
         };
 
         var text = "";
@@ -212,6 +235,15 @@ public class PackFormatter
                     }
 
                     _patterns.Add(new StringPattern { Index = index++, Length = int.Parse(text) });
+                    text = "";
+                    break;
+                case RawByte:
+                    if (string.IsNullOrEmpty(text))
+                    {
+                        throw new ArgumentException("Invalid format");
+                    }
+
+                    _patterns.Add(new RawBytePattern { Index = index++, Length = int.Parse(text) });
                     text = "";
                     break;
                 default:

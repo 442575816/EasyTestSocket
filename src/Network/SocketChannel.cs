@@ -2,14 +2,11 @@ using System.IO.Pipelines;
 using System.Net;
 using System.Net.Sockets;
 using EasyTestSocket.Buf;
-using EasyTestSocket.Log;
 
 namespace EasyTestSocket.Network;
 
 public class SocketChannel
 {
-    private static readonly Logger Log = LogFactory.GetLog("com.will.socket");
-
     public string Id { get; }
 
     /// <summary>
@@ -159,13 +156,11 @@ public class SocketChannel
                 return SocketEventCode.ConnectTimeout;
             }
         }
-        catch (SocketException e)
+        catch (SocketException)
         {
-            Log.Error(e, "connect error");
-
             Close(socket);
 
-            return SocketEventCode.ConnectFail;
+            throw;
         }
     }
 
@@ -175,19 +170,10 @@ public class SocketChannel
     /// <returns></returns>
     public async Task StartAsync()
     {
-        try
-        {
-            // ChannelPipeline = new DefaultChannelPipeline(this);
-            _recvTask = DoReceive();
+        _recvTask = DoReceive();
             
-            await _recvTask;
-            _receiver?.Dispose();
-            // _sender?.Dispose();
-        }
-        catch (Exception e)
-        {
-            Log.Error(e, $"unexpected error in");
-        }
+        await _recvTask;
+        _receiver?.Dispose();
     }
 
     #region socket接受数据
@@ -239,11 +225,11 @@ public class SocketChannel
                 _socketHandler.OnRead(this, buffer);
             }
         }
-        catch (Exception e)
+        catch (Exception)
         {
             if (!_socketDisposed)
             {
-                Log.Error(e, "recv data error");
+                throw;
             }
         }
         finally
@@ -352,16 +338,10 @@ public class SocketChannel
             }
             return true;
         }
-        catch (Exception e)
-        {
-            Log.Error(e, "send data error");
-        }
         finally
         {
             buf.Release();
         }
-
-        return false;
     }
     #endregion
 
@@ -394,14 +374,7 @@ public class SocketChannel
 
     private void CancelConnectionClosedToken()
     {
-        try
-        {
-            _connectionClosedTokenSource.Cancel();
-        }
-        catch (Exception ex)
-        {
-            Log.Error(ex, $"unexpected error");
-        }
+        _connectionClosedTokenSource.Cancel();
     }
 
     /// <summary>
@@ -440,15 +413,6 @@ public class SocketChannel
             // a BadHttpRequestException is thrown instead of a TaskCanceledException.
             _socketDisposed = true;
             IsConnected = false;
-
-            if (null == shutdownReason)
-            {
-                Log.Info("{0} shutdown. completed gracefully.", Id);
-            }
-            else
-            {
-                Log.Error(shutdownReason, "{0} shutdown. reason:{1}.", Id, shutdownReason.Message);
-            }
             
             try
             {
