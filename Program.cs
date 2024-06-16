@@ -20,6 +20,9 @@ result.WithParsed(TestAction);
 // var task = test.StartAsync();
 // var task1 = test.PrintAsync();
 // await Task.WhenAll(task, task1);
+// var task1 = new TestTcp1("127.0.0.1", 1000);
+// var task = task1.StartAsync("ehCNUdsDoVZ1efoL", 12303602397184);
+// Task.WaitAll(task);
 
 public class Options
 {

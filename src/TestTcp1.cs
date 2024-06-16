@@ -34,24 +34,27 @@ public class TestTcp1
         var requestId = 1;
         
         // reconnect
+        requestId++;
         var buf = WrapperPack("reconnect", 1, 1, requestId, Encoding.ASCII.GetBytes($"sessionId={sessionId}"));
         await socket.SendBuf(buf);
         
         // getPlayerInfo
+        requestId++;
         buf = WrapperPack("getPlayerInfo", 2, 1, requestId, Encoding.ASCII.GetBytes($"playerId={playerId}"));
+        await socket.SendBuf(buf);
+        
+        requestId++;
+        buf = WrapperPack("numbalance/getInfo", 2, 1, requestId, Encoding.ASCII.GetBytes(""));
+        await socket.SendBuf(buf);
+            
+        requestId++;
+        buf = WrapperPack("numbalance/play", 2, 1, requestId, Encoding.ASCII.GetBytes("num=1000"));
         await socket.SendBuf(buf);
         
         // 每1分钟发送一个heartbeat
         while (true)
         {
-            await Task.Delay(60000);
-            requestId++;
-            buf = WrapperPack("game/heartbeat", 2, 1, requestId, Encoding.ASCII.GetBytes(""));
-            var result = await socket.SendBuf(buf);
-            if (!result)
-            {
-                break;
-            }
+            await Task.Delay(1000);
         }
     }
     
