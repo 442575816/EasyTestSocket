@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using EasyTestSocket.Buf;
 using EasyTestSocket.Network;
 
@@ -183,19 +184,19 @@ public sealed class BenchmarkResult
     public int Avg { get; set; }
     public long Throughput { get; set; }
     
-    private DateTime _start;
+    private long _start;
     private long _totalElapsed;
 
     public void StartRequest(int length)
     {
         Total++;
         Throughput += length;
-        _start = DateTime.UtcNow;
+        _start = Stopwatch.GetTimestamp();
     }
 
     public void EndRequest(TaskCompletionSource tcs, int outputLength)
     {
-        var elapsed = (int) (DateTime.UtcNow - _start).TotalMicroseconds;
+        var elapsed = (int) Stopwatch.GetElapsedTime(_start).TotalMicroseconds;
         _totalElapsed += elapsed;
         if (Min == 0 || elapsed < Min)
         {
@@ -262,37 +263,51 @@ public class TestSocket : MessageDecoder
         {
             return;
         }
-        
-        while (!_token.IsCancellationRequested && Error == null)
+
+        try
         {
-            _tcs = new TaskCompletionSource();
-            _buf.Retain();
-            try
+            while (!_token.IsCancellationRequested && Error == null)
             {
-                var result = await _channel.SendAsync(_buf);
-                if (!result)
+                _tcs = new TaskCompletionSource();
+                _buf.Retain();
+                try
                 {
+                    var result = await _channel.SendAsync(_buf);
+                    if (!result)
+                    {
+                        Result.Error++;
+                        continue;
+                    }
+                }
+                catch (Exception e)
+                {
+                    Error = e;
                     Result.Error++;
                     continue;
                 }
+
+                Result.StartRequest(_buf.ReadableBytes);
+                try
+                {
+                    await _tcs.Task.WaitAsync(_timeout);
+                }
+                catch (TimeoutException)
+                {
+                    // Ignore
+                    _tcs.TrySetCanceled();
+
+                }
+                catch (Exception)
+                {
+                    // Ignore
+                }
+
+                Result.EndRequest(_tcs, _outputLength);
             }
-            catch (Exception e)
-            {
-                Error = e;
-                Result.Error++;
-                continue;
-            }
-            
-            Result.StartRequest(_buf.ReadableBytes);
-            try
-            {
-                await _tcs.Task.WaitAsync(_timeout);
-            }
-            catch (Exception)
-            {
-                // Ignore
-            }
-            Result.EndRequest(_tcs, _outputLength);
+        }
+        finally
+        {
+            _channel.Close();
         }
     }
     
