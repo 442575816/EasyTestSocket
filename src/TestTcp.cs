@@ -80,6 +80,7 @@ public class TestTcp
 
         var list = new List<int>();
         var lastRequestNum = 0;
+        var seconds = 0;
         while (!_token.IsCancellationRequested)
         {
             Console.SetCursorPosition(0, currTop);
@@ -87,7 +88,9 @@ public class TestTcp
             Console.Write(new string('=', (int)(width * index)));
             Console.Write(new string(' ', (int)(width * (Duration.TotalSeconds - index - 1))));
             Console.Write(']');
+            Console.Write(" {0}s", seconds);
             index++;
+            seconds++;
             await Task.Delay(1000);
             var num = _testSockets.Select(s => s.Result.Success).Sum();
             list.Add(num - lastRequestNum);
@@ -207,7 +210,7 @@ public sealed class BenchmarkResult
             Max = elapsed;
         }
         Avg = (int) (_totalElapsed / Total);
-        if (tcs.Task.IsCompletedSuccessfully)
+        if (tcs.Task.IsCompletedSuccessfully || tcs.Task.Status == TaskStatus.WaitingForActivation)
         {
             Success++;
             Throughput += outputLength;
@@ -270,6 +273,8 @@ public class TestSocket : MessageDecoder
             {
                 _tcs = new TaskCompletionSource();
                 _buf.Retain();
+                
+                Result.StartRequest(_buf.ReadableBytes);
                 try
                 {
                     var result = await _channel.SendAsync(_buf);
@@ -285,8 +290,7 @@ public class TestSocket : MessageDecoder
                     Result.Error++;
                     continue;
                 }
-
-                Result.StartRequest(_buf.ReadableBytes);
+                
                 try
                 {
                     await _tcs.Task.WaitAsync(_timeout);

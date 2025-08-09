@@ -16,10 +16,11 @@ void TestAction(Options option)
 }
 result.WithParsed(TestAction);
 
-var test = new TestTcp("127.0.0.1", 1000, ">nbiii32s11s", ">ibli32s17s", "1,2,1,0,helloworld,name=ddd111", maxConnections:100);
-var task = test.StartAsync();
-var task1 = test.PrintAsync();
-await Task.WhenAll(task, task1);
+// var test = new TestTcp("127.0.0.1", 9001, ">nbiii32s11s", ">ibli32s17s", "1,2,1,0,helloworld,name=ddd111", maxConnections:100);
+// var task = test.StartAsync();
+// var task1 = test.PrintAsync();
+// await Task.WhenAll(task, task1);
+
 // var task1 = new TestTcp1("127.0.0.1", 1000);
 // var task = task1.StartAsync("ehCNUdsDoVZ1efoL", 12303602397184);
 // Task.WaitAll(task);
