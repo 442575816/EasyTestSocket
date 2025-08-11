@@ -15,15 +15,23 @@ public class TestTcp
     public int MaxConnections { get; set; }
     public TimeSpan Duration { get; set; }
     
+    public CancellationTokenSource StopTokenSource { get; }
+    
     private readonly PackFormatter _inputFormatter;
-    private readonly PackFormatter _outputFormatter;
+    private readonly PackFormatter? _outputFormatter;
     private readonly SocketFactory _socketFactory;
     private readonly CancellationToken _token;
 
     private readonly List<TestSocket> _testSockets;
     private Exception? _error;
     
-    public TestTcp(string host, int port, string inputFormat = ">ni32s4s", string outputFormat = ">ii32s16s", string input = "0,helloworld,name", int timeout = 2000, int maxConnections = 200, int duration = 10000)
+    public TestTcp(string host, int port, string inputFormat = ">ni32s4s", 
+                   string outputFormat = ">ii32s16s", 
+                   string input = "0,helloworld,name", 
+                   int outputMode = 0,
+                   int timeout = 2000, 
+                   int maxConnections = 200, 
+                   int duration = 10000)
     {
         Host = host;
         Port = port;
@@ -33,10 +41,14 @@ public class TestTcp
         Timeout = timeout;
         MaxConnections = maxConnections;
         Duration = TimeSpan.FromMilliseconds(duration);
+        StopTokenSource = new CancellationTokenSource();
         
-        _token = new CancellationTokenSource(Duration).Token;
+        _token = StopTokenSource.Token;
         _inputFormatter = new PackFormatter(inputFormat);
-        _outputFormatter = new PackFormatter(outputFormat);
+        if (outputMode == 1)
+        {
+            _outputFormatter = new PackFormatter(outputFormat);
+        }
         _testSockets = new();
 
         _socketFactory = new SocketFactory(new SocketOption
@@ -53,7 +65,7 @@ public class TestTcp
         {
             try
             {
-                var socket = new TestSocket(Host, Port, _socketFactory, _token, _inputFormatter.Format(Input), Timeout, _outputFormatter.Length);
+                var socket = new TestSocket(Host, Port, _socketFactory, _token, _inputFormatter.Format(Input), Timeout, _outputFormatter?.Length ?? -1);
                 _testSockets.Add(socket);
             }
             catch (Exception e)
@@ -74,30 +86,38 @@ public class TestTcp
     public async Task PrintAsync()
     {
         Console.WriteLine($"Test {Host}:{Port} with {MaxConnections} connections for {Duration.TotalSeconds} seconds.");
-        var width = Console.BufferWidth / Duration.TotalSeconds;
+        var width = (int)Math.Ceiling(Console.BufferWidth * 0.5 / Duration.TotalSeconds);
         var index = 0;
         var currTop = Console.CursorTop;
-
+        
         var list = new List<int>();
         var lastRequestNum = 0;
         var seconds = 0;
-        while (!_token.IsCancellationRequested)
+        while (true)
         {
+            await Task.Delay(1000);
+            seconds++;
+            index++;
+            
             Console.SetCursorPosition(0, currTop);
             Console.Write('[');
-            Console.Write(new string('=', (int)(width * index)));
-            Console.Write(new string(' ', (int)(width * (Duration.TotalSeconds - index - 1))));
+            Console.Write(new string('=', width * index));
+            Console.Write(new string(' ', (int)(width * (Duration.TotalSeconds - index))));
             Console.Write(']');
             Console.Write(" {0}s", seconds);
-            index++;
-            seconds++;
-            await Task.Delay(1000);
             var num = _testSockets.Select(s => s.Result.Success).Sum();
             list.Add(num - lastRequestNum);
             lastRequestNum = num;
+
+            if (index >= (int)Duration.TotalSeconds)
+            {
+                await StopTokenSource.CancelAsync();
+                break;
+            }
         }
         Console.WriteLine();
         Console.WriteLine("Done!");
+        await Task.Delay(1000);
         var total = _testSockets.Select(s => s.Result.Total).Sum();
         var success = _testSockets.Select(s => s.Result.Success).Sum();
         var failed = _testSockets.Select(s => s.Result.Failed).Sum();
@@ -239,6 +259,7 @@ public class TestSocket : MessageDecoder
     private readonly TimeSpan _timeout;
     private readonly SocketEventCode _connEventCode;
     public Exception? Error { get; set; }
+    private int _responseSize;
     
     public TestSocket(string host, int port, SocketFactory factory, CancellationToken token, ByteBuf buf, int timeout, int size)
     {
@@ -273,7 +294,7 @@ public class TestSocket : MessageDecoder
             {
                 _tcs = new TaskCompletionSource();
                 _buf.Retain();
-                
+                _responseSize = 0;
                 Result.StartRequest(_buf.ReadableBytes);
                 try
                 {
@@ -306,7 +327,7 @@ public class TestSocket : MessageDecoder
                     // Ignore
                 }
 
-                Result.EndRequest(_tcs, _outputLength);
+                Result.EndRequest(_tcs, _responseSize);
             }
         }
         finally
@@ -321,10 +342,28 @@ public class TestSocket : MessageDecoder
 
     protected override void Decode(SocketChannel channel, ByteBuf buf)
     {
-        if (buf.ReadableBytes >= _outputLength)
+        if (_outputLength == -1)
         {
-            buf.SkipBytes(_outputLength);
-            _tcs!.TrySetResult();
+            // 默认读取dataLen(4)
+            if (buf.ReadableBytes >= 4)
+            {
+                var dataLen = buf.GetInt() + 4;
+                if (buf.ReadableBytes >= dataLen)
+                {
+                    _responseSize = dataLen;
+                    buf.SkipBytes(dataLen);
+                    _tcs!.TrySetResult();
+                }
+            }
+        }
+        else
+        {
+            if (buf.ReadableBytes >= _outputLength)
+            {
+                _responseSize = _outputLength;
+                buf.SkipBytes(_outputLength);
+                _tcs!.TrySetResult();
+            }
         }
     }
 }

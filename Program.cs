@@ -9,7 +9,8 @@ var result = Parser.Default.ParseArguments<Options>(args);
 [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(Options))]
 void TestAction(Options option)
 {
-    var test = new TestTcp(option.Host, option.Port, option.InputFormat, option.OutputFormat, option.Input, option.Timeout, option.MaxConnections, option.Duration);
+    var test = new TestTcp(option.Host, option.Port, option.InputFormat, option.OutputFormat, option.Input,
+        option.OutputMode, option.Timeout, option.MaxConnections, option.Duration);
     var task1 = test.StartAsync();
     var task2 = test.PrintAsync();
     Task.WaitAll(task1, task2);
@@ -34,13 +35,16 @@ public class Options
     public int Port { get; set; }
     
     [Option('c', "connections", Required = false, HelpText = "Maximum number of concurrent connections")]
-    public int MaxConnections { get; set; } = 200;
+    public int MaxConnections { get; set; } = 125;
 
     [Option("req_format", Required = false, HelpText = "Request format")]
     public string InputFormat { get; set; } = ">nbiii32s11s";
     
     [Option("resp_format", Required = false, HelpText = "Response format")]
     public string OutputFormat { get; set; } = ">ibli32s17s";
+    
+    [Option("output_mode", Required = false, HelpText = "Output mode. 0 dataLen(4) 1 自定义模式，根据OutputFormat推算长度")]
+    public int OutputMode { get; set; } = 0;
     
     [Option("input", Required = true, HelpText = "Test input data")]
     public string Input { get; set; } = "1,2,1,0,helloworld,name=ddd111";
